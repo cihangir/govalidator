@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/siesta/govalidator.png)](https://travis-ci.org/siesta/govalidator)
+
 ## A BDD Golang Validation Package
 
 ### Currently validates for min, max. length, required, regex, mail
