@@ -4,10 +4,10 @@
 
 ### Currently validates for min, max. length, required, regex, mail
 
-### You should install those packages in oreder to run tests
+### You should install those packages in order to run tests
 
-`
+(do not forget to set your $GOPATH)
+
 $ go get github.com/onsi/ginkgo
 
 $ go get github.com/onsi/gomega
-`
