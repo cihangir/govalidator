@@ -171,28 +171,6 @@ var _ = Describe("Go Validation Library", func() {
 			It("should return false with init", func() {
 				Expect(validation.Validate(Required{}, &time.Time{})).To(BeFalse())
 			})
-		})
-		Context("testing with date time", func() {
-			It("should return true with now", func() {
-				Expect(validation.Validate(Required{}, time.Now())).To(BeTrue())
-			})
-			It("should return true with yesterday", func() {
-				//              today := time.Now()
-				//              yesterday := time.Date(
-				//                  today.Year(),
-				//                  today.Month(),
-				//                  today.Date()-1,
-				//                  today.Hour(),
-				//                  today.Minute(),
-				//                  today.Second(),
-				//                  today.Nanosecond(),
-				//                  today.Location(),
-				//              )
-				//  Expect(validation.Validate(Required{}, yesterday).To(BeTrue())
-			})
-			It("should return false with init", func() {
-				Expect(validation.Validate(Required{}, &time.Time{})).To(BeFalse())
-			})
 
 		})
 		// todo write more behaviours for regex
