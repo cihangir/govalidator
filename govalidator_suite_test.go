@@ -121,6 +121,11 @@ var _ = Describe("Go Validation Library", func() {
 				Expect(validation.Validate(length, "two")).To(BeFalse())
 			})
 		})
+		Context("testing with non string", func() {
+			It("should return false", func() {
+				Expect(validation.Validate(length, 2)).To(BeFalse())
+			})
+		})
 	})
 	Describe("Validating with Required", func() {
 		Context("testing with string values", func() {
@@ -129,6 +134,23 @@ var _ = Describe("Go Validation Library", func() {
 			})
 			It("should return true any string", func() {
 				Expect(validation.Validate(Required{}, "foo")).To(BeTrue())
+			})
+		})
+		Context("testing with interface value", func() {
+			It("should return false when empty string", func() {
+				var intf interface{}
+
+				Expect(validation.Validate(Required{}, intf)).To(BeFalse())
+			})
+		})
+		Context("testing with int64 value", func() {
+			It("should return false when empty string", func() {
+				Expect(validation.Validate(Required{}, 64.9)).To(BeFalse())
+			})
+		})
+		Context("testing with nil value", func() {
+			It("should return false when data is nil", func() {
+				Expect(validation.Validate(Required{}, nil)).To(BeFalse())
 			})
 		})
 		Context("testing with bool value", func() {
@@ -153,6 +175,10 @@ var _ = Describe("Go Validation Library", func() {
 		Context("testing with date time", func() {
 			It("should return true with now", func() {
 				Expect(validation.Validate(Required{}, time.Now())).To(BeTrue())
+			})
+			It("should return true with pointer to now", func() {
+				now := time.Now()
+				Expect(validation.Validate(Required{}, &now)).To(BeTrue())
 			})
 			It("should return true with yesterday", func() {
 				//              today := time.Now()
@@ -180,6 +206,9 @@ var _ = Describe("Go Validation Library", func() {
 			})
 			It("should return false with dash", func() {
 				Expect(validation.Validate(NewMatch(`az`), "a")).To(BeFalse())
+			})
+			It("should return false non string regex", func() {
+				Expect(validation.Validate(NewMatch(`az`), 3)).To(BeFalse())
 			})
 		})
 		Context("testing with email", func() {
