@@ -2,112 +2,189 @@ package govalidator
 
 import (
 	"fmt"
+	"math"
 	"regexp"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
+var (
+	// ERR_MSG_X_MUST_BE_OF_TYPE_Y = `%s must be of type %s`
+
+	// ERR_MSG_X_IS_MISSING_AND_REQUIRED  = `%s is missing and required`
+	// ERR_MSG_MUST_BE_OF_TYPE_X          = `must be of type %s`
+	// ERR_MSG_ARRAY_ITEMS_MUST_BE_UNIQUE = `array items must be unique`
+
+	// ErrMsgStringLengthMustBeGreaterOrEqual holds the error message format
+	ErrMsgStringLengthMustBeGreaterOrEqual = `string length must be greater or equal to %d`
+
+	// ErrMsgStringLengthMustBeLowerOrEqual holds the error message format
+	ErrMsgStringLengthMustBeLowerOrEqual = `string length must be lower or equal to %d`
+
+	// ErrMsgDoesNotMatchPattern holds the error message format
+	ErrMsgDoesNotMatchPattern = `does not match pattern '%s'`
+
+	// ErrMsgMustMatchOneEnumValues holds the error message format
+	ErrMsgMustMatchOneEnumValues = `must match one of the enum values [%s]`
+
+	// ErrMsgNumberMustBeGreater holds the error message format
+	ErrMsgNumberMustBeGreater = `must be greater than %f`
+
+	// ErrMsgNumberMustBeLower holds the error message format
+	ErrMsgNumberMustBeLower = `must be lower than %f`
+
+	// ErrMsgMultipleOf holds the error message format
+	ErrMsgMultipleOf = `must be a multiple of %f`
+
+	// ErrMsgDate holds the error message format
+	ErrMsgDate = `date should not be zero`
+
+	// ErrMsgNumberMustBeLowerOrEqual   = `must be lower than or equal to %s`
+	// ErrMsgNumberMustBeGreatorOrEqual = `must be greater than or equal to %f`
+
+	// ERR_MSG_NUMBER_MUST_VALIDATE_ALLOF = `must validate all the schemas (allOf)`
+	// ERR_MSG_NUMBER_MUST_VALIDATE_ONEOF = `must validate one and only one schema (oneOf)`
+	// ERR_MSG_NUMBER_MUST_VALIDATE_ANYOF = `must validate at least one schema (anyOf)`
+	// ERR_MSG_NUMBER_MUST_VALIDATE_NOT   = `must not validate the schema (not)`
+
+	// ERR_MSG_ARRAY_MIN_ITEMS = `array must have at least %d items`
+	// ERR_MSG_ARRAY_MAX_ITEMS = `array must have at the most %d items`
+
+	// ERR_MSG_ARRAY_MIN_PROPERTIES = `must have at least %d properties`
+	// ERR_MSG_ARRAY_MAX_PROPERTIES = `must have at the most %d properties`
+
+	// ERR_MSG_HAS_DEPENDENCY_ON = `has a dependency on %s`
+
+	// ERR_MSG_ARRAY_NO_ADDITIONAL_ITEM = `no additional item allowed on array`
+
+	// ERR_MSG_ADDITIONAL_PROPERTY_NOT_ALLOWED = `additional property "%s" is not allowed`
+	// ERR_MSG_INVALID_PATTERN_PROPERTY        = `property "%s" does not match pattern %s`
+)
+
+// Validator provides an interface for validation contract
 type Validator interface {
-	Validate(v interface{}) bool
+	Validate() error
 }
 
-type Validation struct{}
+type f func() error
 
-func (v *Validation) Validate(validator Validator, data interface{}) bool {
-	return validator.Validate(data)
+// Validate validates the pre-built function
+func (f f) Validate() error {
+	return f()
 }
 
-// Min Validation
-// //@Data.Validate.Min(1)
-type Min struct {
-	Min int
+// MinLength createas a validator for checking if the string has the required
+// min length
+func MinLength(data string, length int) Validator {
+	return f(func() error {
+		if utf8.RuneCount([]byte(data)) < length {
+			return fmt.Errorf(ErrMsgStringLengthMustBeGreaterOrEqual, length)
+		}
+
+		return nil
+	})
 }
 
-func (d Min) Validate(v interface{}) bool {
-	if num, ok := v.(int); ok {
-		return num >= d.Min
-	}
-	return false
+// MaxLength createas a validator for checking if the string has the required
+// max length
+func MaxLength(data string, length int) Validator {
+	return f(func() error {
+		if utf8.RuneCount([]byte(data)) > length {
+			return fmt.Errorf(ErrMsgStringLengthMustBeLowerOrEqual, length)
+		}
+
+		return nil
+	})
 }
 
-// Max validation
-// //@Data.Validate.Max(20)
-// maxAge int
-type Max struct {
-	Max int
+// Pattern validates the given string with the given regex
+func Pattern(data string, pattern string) Validator {
+	return f(func() error {
+		// TODO add caching for compile?
+		regex, err := regexp.Compile(pattern)
+		if err != nil {
+			return err
+		}
+
+		if !regex.MatchString(data) {
+			return fmt.Errorf(ErrMsgDoesNotMatchPattern, pattern)
+		}
+
+		return nil
+	})
 }
 
-func (d Max) Validate(v interface{}) bool {
-	if num, ok := v.(int); ok {
-		return num <= d.Max
-	}
-	return false
+// OneOf creates a validator to check if the given value is one of the element
+// of given string slice
+func OneOf(data string, enums []string) Validator {
+	return f(func() error {
+		for _, val := range enums {
+			if val == data {
+				return nil
+			}
+		}
+
+		return fmt.Errorf(ErrMsgMustMatchOneEnumValues, strings.Join(enums, ","))
+	})
 }
 
-// Len Validation for string
-// //@Data.Validate.Len(20)
-// max20CharStr string
-type Len struct {
-	Len int
+// Min creates a validator to check if the given value is greater than the given
+// value
+func Min(data float64, min float64) Validator {
+	return f(func() error {
+		if data < min {
+			return fmt.Errorf(ErrMsgNumberMustBeGreater, min)
+		}
+
+		return nil
+	})
 }
 
-func (d Len) Validate(v interface{}) bool {
-	if str, ok := v.(string); ok {
-		return len(str) == d.Len
-	}
-	return false
+// Max creates a validator to check if the given value is lower than the given
+// value
+func Max(data float64, max float64) Validator {
+	return f(func() error {
+		if data > max {
+			return fmt.Errorf(ErrMsgNumberMustBeLower, max)
+		}
+
+		return nil
+	})
 }
 
-// //@Data.Validate.Required
-type Required struct{}
+// MultipleOf creates a validator to check if the check value is multiple of the
+// given value
+func MultipleOf(data float64, multipleOf float64) Validator {
+	return f(func() error {
+		if math.Mod(data, multipleOf) != 0 {
+			return fmt.Errorf(ErrMsgMultipleOf, multipleOf)
+		}
 
-func (d Required) Validate(v interface{}) bool {
-	if v == nil {
-		return false
-	}
-	switch v.(type) {
-	case string:
-		return len(v.(string)) > 0
-	case bool:
-		return v.(bool)
-	case int:
-		return v.(int) != 0
-	case time.Time:
-		return !v.(time.Time).IsZero()
-	case *time.Time:
-		return !v.(*time.Time).IsZero()
-	default:
-		fmt.Println(fmt.Sprintf("Not implemented validation %T", v))
-		return false
-	}
-
+		return nil
+	})
 }
 
-// //@Data.Validate.Match
-// email string
-type Match struct {
-	Regexp *regexp.Regexp
+// Date creates a validator to check if the given date is not zero date
+func Date(data time.Time) Validator {
+	return f(func() error {
+		if data.IsZero() {
+			return fmt.Errorf(ErrMsgDate)
+		}
+
+		return nil
+	})
 }
 
-func NewMatch(match string) Match {
-	return Match{regexp.MustCompile(match)}
-}
+// NewMulti creates a multi validator, it stops the execution with the first error if error happens while validating
+func NewMulti(v ...Validator) Validator {
+	return f(func() error {
+		for _, vv := range v {
+			if err := vv.Validate(); err != nil {
+				return err
+			}
+		}
 
-func (d Match) Validate(v interface{}) bool {
-	if str, ok := v.(string); ok {
-		return d.Regexp.MatchString(str)
-	}
-	return false
-}
-
-// //@Data.Validate.Match
-// email string
-type Email struct {
-	Match
-}
-
-func NewEmail() Email {
-	// find a good email regex
-	//http://stackoverflow.com/questions/13087755/can-anyone-tell-me-why-this-c-sharp-email-validation-regular-expression-regex
-	var emailRegex = `(\w*[0-9a-zA-Z])*@`
-	return Email{NewMatch(emailRegex)}
+		return nil
+	})
 }
