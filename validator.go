@@ -1,3 +1,4 @@
+// Package govalidator provides validation functions
 package govalidator
 
 import (
